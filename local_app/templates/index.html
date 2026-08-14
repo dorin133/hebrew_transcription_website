@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hebrew Transcriber</title>
+<title>מתמלל עברית</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <main>
-  <h1>Hebrew Transcriber</h1>
+  <h1>מתמלל עברית</h1>
   <p class="sub">
-    Runs transcription to Hebrew on this computer. Your recording stays local.
+    מריץ תמלול לעברית על המחשב הזה. ההקלטה נשארת אצלכם.
   </p>
 
   <div id="warnings" class="warnings hidden"></div>
@@ -19,10 +19,10 @@
     <div class="step" id="step-choose">
       <span class="num">1</span>
       <div class="body">
-        <button id="choose">Choose Recording</button>
+        <button id="choose">בחירת הקלטה</button>
         <input id="file" type="file"
                accept=".m4a,.mp3,.mp4,.wav,.aac,.flac,.ogg,.webm,audio/*" hidden>
-        <p id="file-info" class="note">No file selected. Accepts .m4a, .mp3, and other audio files.</p>
+        <p id="file-info" class="note">לא נבחר קובץ. אפשר <span dir="ltr">.m4a</span>, <span dir="ltr">.mp3</span> וקבצי שמע אחרים.</p>
         <div id="upload-bar" class="bar hidden"><div class="fill"></div></div>
       </div>
     </div>
@@ -30,22 +30,22 @@
     <div class="step" id="step-transcribe">
       <span class="num">2</span>
       <div class="body">
-        <button id="transcribe" disabled>Transcribe</button>
+        <button id="transcribe" disabled>תמלול</button>
         <p id="transcribe-info" class="note">
-          The transcript is saved to <code id="downloads-path">your Downloads folder</code>.
-          On the first run the model downloads first, which takes a while.
+          התמליל נשמר אל <code id="downloads-path" dir="ltr">תיקיית ההורדות שלכם</code>.
+          בהרצה הראשונה המודל יורד קודם, וזה לוקח זמן.
         </p>
       </div>
     </div>
   </section>
 
   <section id="console-card" class="card hidden">
-    <h2>Progress</h2>
-    <pre id="console" class="console" aria-live="polite"></pre>
+    <h2>התקדמות</h2>
+    <pre id="console" class="console" dir="ltr" aria-live="polite"></pre>
   </section>
 
   <section id="result" class="card hidden">
-    <h2>Transcript</h2>
+    <h2>תמליל</h2>
     <p id="saved-note" class="note"></p>
     <textarea id="text" dir="auto" readonly></textarea>
   </section>
@@ -53,12 +53,12 @@
   <p id="status" class="status" role="status" aria-live="polite"></p>
 
   <details class="help">
-    <summary>Notes</summary>
+    <summary>הערות</summary>
     <ul>
-      <li>This page only works while <code>python app.py</code> is running in your terminal.</li>
-      <li>The model is downloaded once on the first transcription, into the Hugging Face cache, and reused offline after that.</li>
-      <li>Transcription uses your GPU when one is available, otherwise the CPU.</li>
-      <li>Keep this tab open and the terminal window running until it finishes.</li>
+      <li>הדף עובד רק כל עוד <code dir="ltr">python app.py</code> רץ בטרמינל.</li>
+      <li>המודל יורד פעם אחת, בתמלול הראשון, למחסן המקומי של <span dir="ltr">Hugging Face</span>, ומשם הוא נטען שוב גם בלי אינטרנט.</li>
+      <li>התמלול משתמש בכרטיס הגרפי כשיש אחד, אחרת במעבד.</li>
+      <li>השאירו את הלשונית הזו פתוחה ואת חלון הטרמינל פועל עד שהתמלול נגמר.</li>
     </ul>
   </details>
 </main>

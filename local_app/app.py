@@ -1,7 +1,7 @@
 """
 Local web UI for transcribe.py.
 
-Serves a page with three buttons and runs the real transcribe.py behind them,
+Serves a page with two buttons and runs the real transcribe.py behind them,
 as a subprocess, with the same interpreter that is running this server. Nothing
 about the transcription is reimplemented here -- this is only a front end.
 
@@ -92,7 +92,7 @@ def stream_subprocess(command: list[str], cwd: Path):
             env=env,
         )
     except OSError as error:
-        yield sse("failed", message=f"Could not start Python: {error}")
+        yield sse("failed", message=f"לא הצלחתי להריץ את Python: {error}")
         return
 
     # Reading in a thread lets us emit keepalives while the model is busy and
@@ -123,7 +123,7 @@ def stream_subprocess(command: list[str], cwd: Path):
     if code == 0:
         yield sse("succeeded")
     else:
-        yield sse("failed", message=f"{Path(command[1]).name} exited with code {code}")
+        yield sse("failed", message=f"{Path(command[1]).name} נעצר עם קוד {code}")
 
 
 @app.get("/")
@@ -136,9 +136,9 @@ def environment():
     """Report the things transcribe.py needs, so problems surface up front."""
     problems = []
     if not TRANSCRIBE_SCRIPT.is_file():
-        problems.append(f"transcribe.py not found at {TRANSCRIBE_SCRIPT}")
+        problems.append(f"transcribe.py לא נמצא בנתיב {TRANSCRIBE_SCRIPT}")
     if shutil.which("ffmpeg") is None:
-        problems.append("ffmpeg is not on PATH. transcribe.py needs it to read audio.")
+        problems.append("ffmpeg לא נמצא ב-PATH. transcribe.py צריך אותו כדי לקרוא שמע.")
 
     device = "cpu"
     try:
@@ -149,7 +149,7 @@ def environment():
         elif torch.cuda.is_available():
             device = "cuda"
     except ImportError:
-        problems.append("PyTorch is not installed. Run: pip install -r requirements.txt")
+        problems.append("PyTorch לא מותקן. הריצו: pip install -r requirements.txt")
 
     return jsonify(
         problems=problems,
@@ -164,13 +164,13 @@ def upload_recording():
     """Save the chosen recording to a temp file and hand back an id for it."""
     uploaded = request.files.get("file")
     if uploaded is None or not uploaded.filename:
-        return jsonify(error="No file was sent."), 400
+        return jsonify(error="לא נשלח קובץ."), 400
 
     original = Path(uploaded.filename).name
     suffix = Path(original).suffix.lower()
     if suffix not in ALLOWED_SUFFIXES:
         allowed = ", ".join(sorted(ALLOWED_SUFFIXES))
-        return jsonify(error=f"Unsupported file type '{suffix}'. Allowed: {allowed}"), 400
+        return jsonify(error=f"סוג הקובץ '{suffix}' לא נתמך. אפשר: {allowed}"), 400
 
     token = uuid.uuid4().hex
     destination = UPLOAD_DIR / f"{token}{suffix}"
@@ -192,9 +192,9 @@ def transcribe():
     language = request.args.get("language", "he")
     source = uploads.get(token)
     if source is None or not source.is_file():
-        return jsonify(error="That recording is no longer available. Choose it again."), 400
+        return jsonify(error="ההקלטה הזו לא זמינה יותר. בחרו אותה מחדש."), 400
     if not language.replace("-", "").isalpha() or len(language) > 8:
-        return jsonify(error="Invalid language code."), 400
+        return jsonify(error="קוד שפה לא תקין."), 400
 
     display_name = request.args.get("name") or source.name
     output_path = unique_output_path(Path(display_name).stem)
@@ -234,7 +234,7 @@ def transcript():
     name = Path(request.args.get("name", "")).name
     path = downloads_dir() / name
     if not name.endswith(".txt") or not path.is_file():
-        return jsonify(error="Transcript not found."), 404
+        return jsonify(error="התמליל לא נמצא."), 404
     return jsonify(text=path.read_text(encoding="utf-8"))
 
 

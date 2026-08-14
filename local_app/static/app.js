@@ -43,7 +43,7 @@ function markDone(stepId) {
 }
 
 function formatMB(bytes) {
-  return `${(bytes / 1e6).toFixed(0)} MB`;
+  return `${(bytes / 1e6).toFixed(0)} מ״ב`;
 }
 
 function resetConsole() {
@@ -88,7 +88,7 @@ function streamEvents(url, { onLog } = {}) {
     source.addEventListener('error', () => {
       // Fires on a dropped connection, which for us means the server died.
       if (source.readyState === EventSource.CLOSED) {
-        reject(new Error('Lost the connection to the local server.'));
+        reject(new Error('החיבור לשרת המקומי נקטע.'));
       }
     });
   });
@@ -102,19 +102,23 @@ async function checkEnvironment() {
     ui.downloadsPath.textContent = info.downloads;
     if (info.problems.length) {
       ui.warnings.classList.remove('hidden');
-      ui.warnings.innerHTML = `<strong>Fix these first:</strong><ul>${
-        info.problems.map((p) => `<li>${p}</li>`).join('')
+      ui.warnings.innerHTML = `<strong>צריך לתקן קודם:</strong><ul>${
+        info.problems.map((p) => `<li dir="ltr">${p}</li>`).join('')
       }</ul>`;
     } else {
-      const label = { cuda: 'NVIDIA GPU', mps: 'Apple GPU', cpu: 'CPU' }[info.device];
+      const label = {
+        cuda: 'כרטיס הגרפי של NVIDIA',
+        mps: 'כרטיס הגרפי של Apple',
+        cpu: 'מעבד',
+      }[info.device];
       setStatus(
         info.device === 'cpu'
-          ? 'No GPU detected, transcription will run on the CPU and be slow.'
-          : `Ready. Transcription will run on your ${label}.`,
+          ? 'לא זוהה כרטיס גרפי. התמלול ירוץ על המעבד ויהיה איטי.'
+          : `מוכן. התמלול ירוץ על ה${label}.`,
       );
     }
   } catch {
-    setStatus('Could not reach the local server. Is python app.py still running?', true);
+    setStatus('אין חיבור לשרת המקומי. בדקו ש-python app.py עדיין רץ.', true);
   }
 }
 
@@ -138,9 +142,9 @@ function uploadRecording(file) {
     request.addEventListener('load', () => {
       const body = JSON.parse(request.responseText || '{}');
       if (request.status === 200) resolve(body);
-      else reject(new Error(body.error ?? `Upload failed (${request.status})`));
+      else reject(new Error(body.error ?? `ההעלאה נכשלה (${request.status})`));
     });
-    request.addEventListener('error', () => reject(new Error('Upload failed.')));
+    request.addEventListener('error', () => reject(new Error('ההעלאה נכשלה.')));
     request.send(form);
   });
 }
@@ -155,7 +159,7 @@ ui.file.addEventListener('change', async () => {
   state.token = null;
   refreshButtons();
   ui.result.classList.add('hidden');
-  ui.fileInfo.textContent = `Preparing ${file.name}…`;
+  ui.fileInfo.textContent = `מכין את ${file.name}…`;
 
   try {
     const { token, name, size } = await uploadRecording(file);
@@ -166,7 +170,7 @@ ui.file.addEventListener('change', async () => {
     markDone('step-choose');
     setStatus('');
   } catch (error) {
-    ui.fileInfo.textContent = 'No file selected.';
+    ui.fileInfo.textContent = 'לא נבחר קובץ.';
     ui.uploadBar.classList.add('hidden');
     setStatus(error.message, true);
   } finally {
@@ -183,15 +187,14 @@ ui.transcribe.addEventListener('click', async () => {
   resetConsole();
   ui.result.classList.add('hidden');
   setStatus(
-    'Running transcribe.py. This takes a while on long recordings, and longer'
-    + ' still if the model has not been downloaded yet.',
+    'מריץ תמלול. זה לוקח זמן בהקלטות ארוכות, ויותר מזה אם המודל עוד לא ירד.',
   );
 
   const query = new URLSearchParams({ token: state.token, name: state.name });
   try {
     const { output, name } = await streamEvents(`/api/transcribe?${query}`);
     markDone('step-transcribe');
-    ui.savedNote.textContent = `Saved to ${output}`;
+    ui.savedNote.textContent = `נשמר אל ${output}`;
 
     const response = await fetch(`/api/transcript?name=${encodeURIComponent(name)}`);
     const text = response.ok ? (await response.json()).text : '';
@@ -199,12 +202,12 @@ ui.transcribe.addEventListener('click', async () => {
     ui.result.classList.remove('hidden');
 
     if (text.trim()) {
-      setStatus(`Done. Saved ${name} to your Downloads folder.`);
+      setStatus(`סיום. ${name} נשמר לתיקיית ההורדות.`);
     } else {
       // An empty file is a real outcome, not a crash. Say so rather than
       // showing an empty box next to a success message.
       setStatus(
-        'The model returned no text, so the transcript is empty. See the reasons in the log above.',
+        'המודל לא החזיר טקסט, ולכן התמליל ריק. הסיבות האפשריות מופיעות ביומן שלמעלה.',
         true,
       );
     }

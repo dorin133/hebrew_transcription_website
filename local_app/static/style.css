@@ -136,7 +136,7 @@ textarea {
 
 .help { color: var(--muted); font-size: .875rem; margin-top: 1.5rem; }
 .help summary { cursor: pointer; }
-.help ul { margin: .8rem 0 0; padding-left: 1.2rem; }
+.help ul { margin: .8rem 0 0; padding-inline-start: 1.2rem; }
 .help li + li { margin-top: .4rem; }
 
 .warnings {
@@ -147,7 +147,7 @@ textarea {
   margin-bottom: 1.25rem;
   font-size: .9rem;
 }
-.warnings ul { margin: .6rem 0 0; padding-left: 1.2rem; }
+.warnings ul { margin: .6rem 0 0; padding-inline-start: 1.2rem; }
 .warnings li + li { margin-top: .3rem; }
 
 .console {
