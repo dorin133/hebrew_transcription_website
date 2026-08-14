@@ -9,7 +9,7 @@ Nothing is uploaded anywhere!
 **macOS** — double-click `local_app/start-mac.command`.
 
 The first run creates a virtual environment, installs dependencies, and opens
-the page at <http://127.0.0.1:8000>. Later runs start in a couple of seconds.
+the page. Later runs start in a couple of seconds.
 
 `transcribe.py` needs **ffmpeg** on your PATH to read audio. The launcher
 installs it automatically if it's missing. On Windows, if it just installed ffmpeg, close the window and
