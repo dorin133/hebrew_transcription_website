@@ -12,13 +12,10 @@ running on your machine.
 The first run creates a virtual environment, installs dependencies, and opens
 the page at <http://127.0.0.1:8000>. Later runs start in a couple of seconds.
 
-You also need **ffmpeg** on your PATH, which `transcribe.py` uses to read audio.
-The launcher warns you if it is missing:
-
-```
-Windows:  winget install Gyan.FFmpeg      (then open a new terminal)
-macOS:    brew install ffmpeg
-```
+`transcribe.py` needs **ffmpeg** on your PATH to read audio. The launcher
+installs it automatically if it's missing (via winget on Windows, Homebrew on
+macOS). On Windows, if it just installed ffmpeg, close the window and
+double-click `start-windows.bat` again so PATH picks it up.
 
 Then, in the page:
 

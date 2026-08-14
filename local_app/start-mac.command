@@ -15,10 +15,16 @@ if [ ! -d .venv ]; then
 fi
 
 if ! command -v ffmpeg >/dev/null 2>&1; then
-    echo
-    echo "WARNING: ffmpeg was not found on PATH. Transcription will fail without it."
-    echo "Install it with:  brew install ffmpeg"
-    echo
+    if command -v brew >/dev/null 2>&1; then
+        echo "ffmpeg was not found. Installing it with Homebrew..."
+        brew install ffmpeg
+    else
+        echo
+        echo "WARNING: ffmpeg was not found on PATH, and Homebrew is not installed."
+        echo "Install Homebrew (https://brew.sh), then re-run this script, or install"
+        echo "ffmpeg some other way and make sure it is on PATH."
+        echo
+    fi
 fi
 
 (sleep 2 && open http://127.0.0.1:8000) &

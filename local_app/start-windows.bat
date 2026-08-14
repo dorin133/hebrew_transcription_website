@@ -15,12 +15,22 @@ if not exist ".venv" (
 )
 
 where ffmpeg >nul 2>nul || (
-    echo.
-    echo WARNING: ffmpeg was not found on PATH. Transcription will fail without it.
-    echo Install it with:  winget install Gyan.FFmpeg
-    echo Then close this window and open a new one.
-    echo.
-    pause
+    where winget >nul 2>nul && (
+        echo ffmpeg was not found. Installing it with winget...
+        winget install --id Gyan.FFmpeg -e --source winget
+        echo.
+        echo ffmpeg was just installed. Close this window and double-click
+        echo start-windows.bat again so PATH picks it up.
+        echo.
+        pause
+        exit /b 0
+    ) || (
+        echo.
+        echo WARNING: ffmpeg was not found on PATH, and winget is not available.
+        echo Install ffmpeg manually and make sure it is on PATH.
+        echo.
+        pause
+    )
 )
 
 start "" http://127.0.0.1:8000
