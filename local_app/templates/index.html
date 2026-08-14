@@ -28,20 +28,13 @@
       </div>
     </div>
 
-    <div class="step" id="step-model">
-      <span class="num">2</span>
-      <div class="body">
-        <button id="download-model">Download Model</button>
-        <p id="model-info" class="note">Checking the local model cache&hellip;</p>
-      </div>
-    </div>
-
     <div class="step" id="step-transcribe">
-      <span class="num">3</span>
+      <span class="num">2</span>
       <div class="body">
         <button id="transcribe" disabled>Transcribe</button>
         <p id="transcribe-info" class="note">
           The transcript is saved to <code id="downloads-path">your Downloads folder</code>.
+          On the first run the model downloads first, which takes a while.
         </p>
       </div>
     </div>
@@ -64,7 +57,7 @@
     <summary>Notes</summary>
     <ul>
       <li>This page only works while <code>python app.py</code> is running in your terminal.</li>
-      <li>The model is downloaded once, into the Hugging Face cache, and reused offline after that.</li>
+      <li>The model is downloaded once on the first transcription, into the Hugging Face cache, and reused offline after that.</li>
       <li>Transcription uses your GPU when one is available, otherwise the CPU.</li>
       <li>Keep this tab open and the terminal window running until it finishes.</li>
     </ul>

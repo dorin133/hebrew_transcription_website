@@ -1,5 +1,5 @@
 // Talks to the local Flask server: uploads the chosen recording, then streams
-// the output of download_model.py and transcribe.py into the page.
+// the output of transcribe.py into the page.
 
 const el = (id) => document.getElementById(id);
 
@@ -8,8 +8,6 @@ const ui = {
   file: el('file'),
   fileInfo: el('file-info'),
   uploadBar: el('upload-bar'),
-  downloadModel: el('download-model'),
-  modelInfo: el('model-info'),
   transcribe: el('transcribe'),
   transcribeInfo: el('transcribe-info'),
   downloadsPath: el('downloads-path'),
@@ -25,7 +23,6 @@ const ui = {
 const state = {
   token: null,
   name: null,
-  modelCached: false,
   busy: false,
 };
 
@@ -38,7 +35,6 @@ function setStatus(message, isError = false) {
 
 function refreshButtons() {
   ui.choose.disabled = state.busy;
-  ui.downloadModel.disabled = state.busy;
   ui.transcribe.disabled = state.busy || !state.token;
 }
 
@@ -122,23 +118,6 @@ async function checkEnvironment() {
   }
 }
 
-async function checkModel() {
-  try {
-    const { cached } = await (await fetch('/api/model')).json();
-    state.modelCached = cached;
-    if (cached) {
-      ui.modelInfo.textContent = 'Model already downloaded and cached on this computer.';
-      ui.downloadModel.textContent = 'Re-check Model';
-      markDone('step-model');
-    } else {
-      ui.modelInfo.textContent =
-        'Not downloaded yet. Several GB, fetched once and then reused offline.';
-    }
-  } catch {
-    ui.modelInfo.textContent = 'Could not check the model cache.';
-  }
-}
-
 // ── Actions ──────────────────────────────────────────────────────────────────
 
 /** Upload with XHR rather than fetch, because we want real progress on big files. */
@@ -196,28 +175,6 @@ ui.file.addEventListener('change', async () => {
   }
 });
 
-ui.downloadModel.addEventListener('click', async () => {
-  state.busy = true;
-  refreshButtons();
-  resetConsole();
-  ui.modelInfo.textContent = 'Downloading…';
-  setStatus('Downloading the model. Progress appears below.');
-
-  try {
-    await streamEvents('/api/model/download');
-    state.modelCached = true;
-    ui.modelInfo.textContent = 'Model downloaded and cached on this computer.';
-    markDone('step-model');
-    setStatus('Model ready.');
-  } catch (error) {
-    ui.modelInfo.textContent = 'Download did not finish.';
-    setStatus(error.message, true);
-  } finally {
-    state.busy = false;
-    refreshButtons();
-  }
-});
-
 ui.transcribe.addEventListener('click', async () => {
   if (!state.token) return;
 
@@ -226,9 +183,8 @@ ui.transcribe.addEventListener('click', async () => {
   resetConsole();
   ui.result.classList.add('hidden');
   setStatus(
-    state.modelCached
-      ? 'Running transcribe.py. This takes a while on long recordings.'
-      : 'Running transcribe.py. The model downloads first, which takes a while.',
+    'Running transcribe.py. This takes a while on long recordings, and longer'
+    + ' still if the model has not been downloaded yet.',
   );
 
   const query = new URLSearchParams({ token: state.token, name: state.name });
@@ -261,5 +217,4 @@ ui.transcribe.addEventListener('click', async () => {
 });
 
 checkEnvironment();
-checkModel();
 refreshButtons();

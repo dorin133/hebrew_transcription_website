@@ -28,7 +28,6 @@ from flask import Flask, Response, jsonify, render_template, request
 # transcribe.py lives one directory up, next to this app's folder.
 REPO_ROOT = Path(__file__).resolve().parent.parent
 TRANSCRIBE_SCRIPT = Path(os.environ.get("TRANSCRIBE_SCRIPT", REPO_ROOT / "transcribe.py"))
-DOWNLOAD_HELPER = Path(__file__).resolve().parent / "download_model.py"
 
 ALLOWED_SUFFIXES = {".m4a", ".mp3", ".mp4", ".wav", ".aac", ".flac", ".ogg", ".webm", ".m4b"}
 
@@ -157,27 +156,6 @@ def environment():
         device=device,
         downloads=str(downloads_dir()),
         script=str(TRANSCRIBE_SCRIPT),
-    )
-
-
-@app.get("/api/model")
-def model_status():
-    """Ask the helper whether the weights are already in the Hugging Face cache."""
-    result = subprocess.run(
-        [sys.executable, str(DOWNLOAD_HELPER), "--check"],
-        capture_output=True,
-        text=True,
-    )
-    return jsonify(cached=result.returncode == 0)
-
-
-@app.get("/api/model/download")
-def model_download():
-    """Populate the Hugging Face cache using the same calls transcribe.py makes."""
-    return Response(
-        stream_subprocess([sys.executable, "-u", str(DOWNLOAD_HELPER)], REPO_ROOT),
-        mimetype="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 
