@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hebrew Transcriber</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main>
+  <h1>Hebrew Transcriber</h1>
+  <p class="sub">
+    Runs <code>transcribe.py</code> on this computer with
+    <code>ivrit-ai/whisper-large-v3</code>. Your recording stays local.
+  </p>
+
+  <div id="warnings" class="warnings hidden"></div>
+
+  <section class="card">
+    <div class="step" id="step-choose">
+      <span class="num">1</span>
+      <div class="body">
+        <button id="choose">Choose Recording</button>
+        <input id="file" type="file"
+               accept=".m4a,.mp3,.mp4,.wav,.aac,.flac,.ogg,.webm,audio/*" hidden>
+        <p id="file-info" class="note">No file selected. Accepts .m4a, .mp3, and other audio files.</p>
+        <div id="upload-bar" class="bar hidden"><div class="fill"></div></div>
+      </div>
+    </div>
+
+    <div class="step" id="step-model">
+      <span class="num">2</span>
+      <div class="body">
+        <button id="download-model">Download Model</button>
+        <p id="model-info" class="note">Checking the local model cache&hellip;</p>
+      </div>
+    </div>
+
+    <div class="step" id="step-transcribe">
+      <span class="num">3</span>
+      <div class="body">
+        <button id="transcribe" disabled>Transcribe</button>
+        <p id="transcribe-info" class="note">
+          The transcript is saved to <code id="downloads-path">your Downloads folder</code>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="console-card" class="card hidden">
+    <h2>Progress</h2>
+    <pre id="console" class="console" aria-live="polite"></pre>
+  </section>
+
+  <section id="result" class="card hidden">
+    <h2>Transcript</h2>
+    <p id="saved-note" class="note"></p>
+    <textarea id="text" dir="auto" readonly></textarea>
+  </section>
+
+  <p id="status" class="status" role="status" aria-live="polite"></p>
+
+  <details class="help">
+    <summary>Notes</summary>
+    <ul>
+      <li>This page only works while <code>python app.py</code> is running in your terminal.</li>
+      <li>The model is downloaded once, into the Hugging Face cache, and reused offline after that.</li>
+      <li>Transcription uses your GPU when one is available, otherwise the CPU.</li>
+      <li>Keep this tab open and the terminal window running until it finishes.</li>
+    </ul>
+  </details>
+</main>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

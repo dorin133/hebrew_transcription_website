@@ -1,0 +1,21 @@
+# Requirements for the local web UI (local_app/app.py).
+#
+# This installs Flask plus everything transcribe.py itself needs.
+#
+# ── System dependency: ffmpeg ──
+# Windows:  winget install Gyan.FFmpeg     (then open a NEW terminal)
+# macOS:    brew install ffmpeg
+# Verify with:  ffmpeg -version
+#
+# ── Python dependencies ──
+#     pip install -r requirements.txt
+#
+# NVIDIA GPU users: install the CUDA build of torch first, otherwise pip gives
+# you the CPU build and transcription will be slow:
+#     pip install torch --index-url https://download.pytorch.org/whl/cu121
+
+flask
+torch
+transformers
+numpy
+huggingface_hub
