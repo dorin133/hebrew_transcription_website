@@ -1,0 +1,9 @@
+* text=auto eol=lf
+
+# cmd.exe misparses batch files that use bare LF, and a GitHub ZIP download
+# delivers the file exactly as stored, so keep these CRLF everywhere.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.command text eol=lf
+*.sh text eol=lf
