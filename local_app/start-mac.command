@@ -5,13 +5,21 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 PY=$(command -v python3 || command -v python)
+STAMP=.venv/setup-complete.txt
 
-if [ ! -d .venv ]; then
-    echo "Creating a virtual environment..."
-    "$PY" -m venv .venv
+# The stamp is written only after the imports work, so an install that died half
+# way through is retried instead of being skipped forever.
+if [ ! -x .venv/bin/python ] || [ ! -f "$STAMP" ]; then
+    rm -f "$STAMP"
+    if [ ! -x .venv/bin/python ]; then
+        echo "Creating a virtual environment..."
+        "$PY" -m venv .venv
+    fi
     echo "Installing dependencies. This takes a few minutes the first time..."
     .venv/bin/python -m pip install --upgrade pip
     .venv/bin/python -m pip install -r requirements.txt
+    .venv/bin/python -c "import flask, numpy, torch, transformers"
+    echo done > "$STAMP"
 fi
 
 if ! command -v ffmpeg >/dev/null 2>&1; then
@@ -27,5 +35,5 @@ if ! command -v ffmpeg >/dev/null 2>&1; then
     fi
 fi
 
-(sleep 2 && open http://127.0.0.1:8000) &
+# app.py opens the browser itself, once the port really answers.
 exec .venv/bin/python app.py
