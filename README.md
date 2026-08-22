@@ -29,22 +29,13 @@ you will silently get the slow CPU build:
 
 ## Windows notes
 
-* Get the code with **Code → Download ZIP** and **extract it** before running
-  anything. Batch files do not run from inside a zip preview window.
-* Put the folder somewhere with a short path, such as `C:\transcriber`.
-  Installing PyTorch under a long path can hit the 260-character limit.
-* Windows may warn that the file came from the internet. Choose **More info →
-  Run anyway**, or untick *Blocked* in the file's Properties.
-* Python is not installed by default. The launcher offers to install it with
-  `winget`, or get it from [python.org](https://www.python.org/downloads/windows/)
-  and tick **Add python.exe to PATH**. Python 3.12 is the safest choice.
-* If the launcher reports that PyTorch will not load, install the
-  [Microsoft Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe).
-* If setup fails part way through, just run the launcher again — it retries the
-  installation rather than starting a half-installed app.
-* The window stays open on failure so you can read the error. If it closes
-  instantly anyway, run `local_app\start-windows.bat` from a `cmd` window to keep
-  the output.
+* Extract the ZIP first, to a short path like `C:\transcriber` — PyTorch trips
+  over the 260-character path limit.
+* Needs Python. The launcher offers to install it, or get 3.12 from
+  [python.org](https://www.python.org/downloads/windows/) and tick **Add
+  python.exe to PATH**.
+* If anything fails, run the launcher again. It retries, and the window stays
+  open with the error.
 
 ## Running it by hand
 
