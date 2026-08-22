@@ -15,7 +15,9 @@ Usage:
 """
 
 import argparse
+import shutil
 import subprocess
+import sys
 import warnings
 from pathlib import Path
 
@@ -25,14 +27,46 @@ from transformers import AutoProcessor, AutoModelForSpeechSeq2Seq
 
 warnings.filterwarnings("ignore")
 
+# The transcript is printed as well as written. On Windows a redirected stdout
+# defaults to the system code page, which cannot encode Hebrew, so pin UTF-8.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 MODEL_ID = "ivrit-ai/whisper-large-v3"
 TARGET_SR = 16000
 WINDOW_S = 30       # each decode window covers up to 30s of audio
 PRINT_EVERY_S = 60  # print a progress line roughly every 60s of processed audio
 
 
+def pick_device():
+    """Best available accelerator. Absent backends must not raise here."""
+    try:
+        if torch.cuda.is_available():
+            return "cuda"
+        mps = getattr(torch.backends, "mps", None)
+        if mps is not None and mps.is_available():
+            return "mps"
+    except Exception as error:  # noqa: BLE001 - fall back rather than give up
+        print(f"Device detection failed ({type(error).__name__}: {error}), using CPU.")
+    return "cpu"
+
+
+def require_ffmpeg():
+    """Fail before the model download, not after it, when ffmpeg is missing."""
+    if shutil.which("ffmpeg") is None:
+        raise SystemExit(
+            "ffmpeg was not found on PATH, and it is needed to read audio.\n"
+            "  Windows:  winget install Gyan.FFmpeg   (then open a new terminal)\n"
+            "  macOS:    brew install ffmpeg"
+        )
+
+
 def load_audio(path):
     """Decode any audio/video file to mono 16 kHz float32 samples via ffmpeg."""
+    require_ffmpeg()
     proc = subprocess.run(
         [
             "ffmpeg", "-nostdin", "-loglevel", "error",
@@ -40,10 +74,15 @@ def load_audio(path):
             "-f", "s16le", "-ac", "1", "-ar", str(TARGET_SR),
             "-",
         ],
-        check=True,
+        check=False,
         capture_output=True,
     )
-    return np.frombuffer(proc.stdout, dtype=np.int16).astype(np.float32) / 32768.0
+    if proc.returncode != 0:
+        details = proc.stderr.decode("utf-8", "replace").strip()
+        raise SystemExit(f"ffmpeg could not read {path}:\n{details}")
+    # An odd byte count means a truncated sample; drop it rather than crash.
+    raw = proc.stdout[: len(proc.stdout) - len(proc.stdout) % 2]
+    return np.frombuffer(raw, dtype=np.int16).astype(np.float32) / 32768.0
 
 
 def main():
@@ -62,10 +101,10 @@ def main():
     audio_path = Path(args.audio)
     if not audio_path.exists():
         raise SystemExit(f"Input file not found: {audio_path}")
+    require_ffmpeg()
     output_path = Path(args.out) if args.out else audio_path.with_suffix(".txt")
 
-    device = args.device or ("mps" if torch.backends.mps.is_available() else (
-        "cuda" if torch.cuda.is_available() else "cpu"))
+    device = args.device or pick_device()
     # fp16 only on CUDA. Whisper in fp16 on Apple's MPS backend returns empty or
     # repeated text, so MPS runs in fp32 despite the extra memory.
     dtype = torch.float16 if device == "cuda" else torch.float32
@@ -153,6 +192,7 @@ def main():
         print("  - --language does not match what is actually spoken")
         print("  - fp16 numerical issues; retry with --device cpu\n")
 
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(text + "\n", encoding="utf-8")
     print(f"Done. Wrote transcription to {output_path}")
 

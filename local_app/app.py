@@ -9,27 +9,60 @@ Usage:
     pip install -r requirements.txt
     python app.py
 
-Then open http://127.0.0.1:8000 in a browser.
+It prints the address it is serving, and opens a browser there.
 """
 
 import json
 import os
 import queue
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 import uuid
+import webbrowser
 from pathlib import Path
 
-from flask import Flask, Response, jsonify, render_template, request
+# Checked before importing Flask, which fails with a much less obvious message
+# on Pythons this old.
+if sys.version_info < (3, 9):
+    raise SystemExit(
+        f"This app needs Python 3.9 or newer, but is running on "
+        f"{sys.version.split()[0]}. Install a newer Python and try again."
+    )
+
+# Hebrew paths and transcripts are printed below. On Windows a redirected stdout
+# defaults to the system code page, which cannot encode them, so pin UTF-8.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
+from flask import Flask, Response, jsonify, render_template, request  # noqa: E402
 
 # transcribe.py lives one directory up, next to this app's folder.
-REPO_ROOT = Path(__file__).resolve().parent.parent
+APP_DIR = Path(__file__).resolve().parent
+REPO_ROOT = APP_DIR.parent
 TRANSCRIBE_SCRIPT = Path(os.environ.get("TRANSCRIBE_SCRIPT", REPO_ROOT / "transcribe.py"))
 
+# The Windows launcher can drop a portable ffmpeg here when the system has none.
+# Put it on PATH for us and for the transcribe.py we spawn.
+BUNDLED_FFMPEG = APP_DIR / "tools" / "ffmpeg"
+if BUNDLED_FFMPEG.is_dir():
+    os.environ["PATH"] = f"{BUNDLED_FFMPEG}{os.pathsep}{os.environ.get('PATH', '')}"
+
 ALLOWED_SUFFIXES = {".m4a", ".mp3", ".mp4", ".wav", ".aac", ".flac", ".ogg", ".webm", ".m4b"}
+
+# Names Windows refuses to create a file under, whatever the extension.
+WINDOWS_RESERVED = {
+    "CON", "PRN", "AUX", "NUL",
+    *(f"COM{n}" for n in range(1, 10)),
+    *(f"LPT{n}" for n in range(1, 10)),
+}
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 4 * 1024**3  # 4 GB, enough for long recordings
@@ -59,12 +92,29 @@ def downloads_dir() -> Path:
     return candidate if candidate.is_dir() else Path.home()
 
 
+def safe_stem(name: str) -> str:
+    """
+    Turn a name the browser gave us into one every filesystem accepts. Windows
+    is the strict one: it bans several punctuation marks, trailing dots and
+    spaces, and a handful of device names.
+    """
+    stem = Path(name.replace("\\", "/")).name
+    stem = Path(stem).stem
+    for character in '<>:"/\\|?*':
+        stem = stem.replace(character, "-")
+    stem = "".join(c for c in stem if c.isprintable()).rstrip(". ").strip()
+    if not stem or stem.upper() in WINDOWS_RESERVED:
+        stem = f"transcript-{stem}" if stem else "transcript"
+    return stem[:120]
+
+
 def unique_output_path(stem: str) -> Path:
     """Pick <Downloads>/<stem>.txt, adding a counter rather than overwriting."""
-    target = downloads_dir() / f"{stem}.txt"
+    folder = downloads_dir()
+    target = folder / f"{stem}.txt"
     counter = 2
     while target.exists():
-        target = downloads_dir() / f"{stem} ({counter}).txt"
+        target = folder / f"{stem} ({counter}).txt"
         counter += 1
     return target
 
@@ -123,7 +173,38 @@ def stream_subprocess(command: list[str], cwd: Path):
     if code == 0:
         yield sse("succeeded")
     else:
-        yield sse("failed", message=f"{Path(command[1]).name} נעצר עם קוד {code}")
+        # command is [python, -u, script, ...], so name the script, not a flag.
+        script = next((Path(a).name for a in command if a.endswith(".py")), "התהליך")
+        yield sse("failed", message=f"{script} נעצר עם קוד {code}")
+
+
+def detect_device() -> tuple[str, list[str]]:
+    """
+    Work out which device transcribe.py will use, and turn a broken PyTorch
+    install into a readable sentence. On Windows `import torch` raises OSError
+    rather than ImportError when a DLL it needs is missing, so catch everything.
+    """
+    try:
+        import torch
+    except Exception as error:  # noqa: BLE001 - any failure here is a user problem
+        hint = "PyTorch לא נטען. הריצו: pip install -r requirements.txt"
+        if sys.platform == "win32" and isinstance(error, OSError):
+            hint = (
+                "PyTorch לא נטען. בוויندוס זה קורה כשחסר Microsoft Visual C++ "
+                "Redistributable. התקינו אותו מ-https://aka.ms/vs/17/release/vc_redist.x64.exe "
+                "ונסו שוב."
+            )
+        return "cpu", [f"{hint} ({type(error).__name__}: {error})"]
+
+    try:
+        if torch.cuda.is_available():
+            return "cuda", []
+        mps = getattr(torch.backends, "mps", None)
+        if mps is not None and mps.is_available():
+            return "mps", []
+    except Exception as error:  # noqa: BLE001 - a probe must never 500 the page
+        return "cpu", [f"בדיקת הכרטיס הגרפי נכשלה: {type(error).__name__}: {error}"]
+    return "cpu", []
 
 
 @app.get("/")
@@ -140,16 +221,8 @@ def environment():
     if shutil.which("ffmpeg") is None:
         problems.append("ffmpeg לא נמצא ב-PATH. transcribe.py צריך אותו כדי לקרוא שמע.")
 
-    device = "cpu"
-    try:
-        import torch
-
-        if torch.backends.mps.is_available():
-            device = "mps"
-        elif torch.cuda.is_available():
-            device = "cuda"
-    except ImportError:
-        problems.append("PyTorch לא מותקן. הריצו: pip install -r requirements.txt")
+    device, device_problems = detect_device()
+    problems.extend(device_problems)
 
     return jsonify(
         problems=problems,
@@ -197,7 +270,7 @@ def transcribe():
         return jsonify(error="קוד שפה לא תקין."), 400
 
     display_name = request.args.get("name") or source.name
-    output_path = unique_output_path(Path(display_name).stem)
+    output_path = unique_output_path(safe_stem(display_name))
 
     command = [
         sys.executable,
@@ -238,11 +311,53 @@ def transcript():
     return jsonify(text=path.read_text(encoding="utf-8"))
 
 
+def free_port(preferred: int) -> int:
+    """
+    Return a port we can actually bind. Windows reserves whole ranges for
+    Hyper-V and WSL, and 8000 is often inside one, which makes bind() fail with
+    WinError 10013 instead of anything obvious. Fall back to any free port.
+    """
+    for candidate in (preferred, 0):
+        try:
+            # No SO_REUSEADDR here: on Windows it would let two servers bind the
+            # same port, which is exactly the clash we are testing for.
+            with socket.socket() as probe:
+                probe.bind(("127.0.0.1", candidate))
+                return probe.getsockname()[1]
+        except OSError:
+            continue
+    return preferred
+
+
+def open_when_ready(url: str, port: int) -> None:
+    """
+    Open the browser once the server answers. Opening it up front, as the
+    launchers used to, showed a connection error on slower machines because
+    importing Flask can take several seconds on a cold Windows disk.
+    """
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.5):
+                break
+        except OSError:
+            time.sleep(0.2)
+    else:
+        return
+    webbrowser.open(url)
+
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", "8000"))
-    print(f"\n  Transcriber UI:  http://127.0.0.1:{port}")
+    port = free_port(int(os.environ.get("PORT", "8000")))
+    url = f"http://127.0.0.1:{port}"
+    print(f"\n  Transcriber UI:  {url}")
     print(f"  Using script:    {TRANSCRIBE_SCRIPT}")
-    print(f"  Transcripts to:  {downloads_dir()}\n")
+    print(f"  Transcripts to:  {downloads_dir()}")
+    print(f"  ffmpeg:          {shutil.which('ffmpeg') or 'לא נמצא'}\n")
+
+    if os.environ.get("NO_BROWSER") != "1":
+        threading.Thread(target=open_when_ready, args=(url, port), daemon=True).start()
+
     # Bound to localhost on purpose: this server runs local commands and must
     # not be reachable from the network.
     app.run(host="127.0.0.1", port=port, threaded=True)
